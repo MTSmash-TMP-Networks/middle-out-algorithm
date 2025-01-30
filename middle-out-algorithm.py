@@ -94,8 +94,10 @@ nonagrams = cursor.fetchall()
 
 # Schritt 6: Konsolidierung der Nonagramme basierend auf Levenshtein-Distanz
 print("Starte Konsolidierung der Nonagramme...")
+start_time = time.time()
 consolidated_nonagrams = consolidate_nonagrams_with_levenshtein(nonagrams, threshold=5)
-print("Konsolidierung abgeschlossen.")
+end_time = time.time()
+print(f"Konsolidierung abgeschlossen. Dauer: {end_time - start_time:.2f} Sekunden")
 
 # Schritt 7: Ergebnisse im CSV-Format in eine Datei schreiben
 output_file = 'haeufigste_nonagramme_mitte_konsolidiert.csv'
