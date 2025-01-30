@@ -1,27 +1,5 @@
 import sqlite3
 import csv
-from Levenshtein import distance  # Für die Levenshtein-Distanz
-import time  # Für die Zeitmessung
-
-# Funktion zur Konsolidierung der Nonagramme basierend auf Levenshtein-Distanz
-def consolidate_nonagrams_with_levenshtein(nonagrams, threshold=5):
-    consolidated = []
-    total = len(nonagrams)  # Gesamtanzahl der Nonagramme
-    start_time = time.time()  # Startzeit für die Fortschrittsanzeige
-
-    for i, (nonagram, count) in enumerate(nonagrams):
-        # Fortschrittsanzeige
-        if i % 100 == 0 or i == total - 1:  # Alle 100 Schritte oder am Ende
-            elapsed_time = time.time() - start_time
-            progress = (i + 1) / total * 100
-            print(f"[{progress:.2f}%] Verarbeitet: {i + 1}/{total} Nonagramme. Zeit: {elapsed_time:.2f}s")
-
-        # Prüfe, ob das Nonagramm bereits konsolidiert wurde
-        if any(distance(nonagram, existing) < threshold for existing, _ in consolidated):
-            continue
-        consolidated.append((nonagram, count))
-    
-    return consolidated
 
 # Schritt 1: SQLite-Datenbank erstellen und Tabelle für Wörter anlegen
 conn = sqlite3.connect('nonagram_analysis.db')
@@ -74,7 +52,7 @@ JOIN words w8 ON w1.line_number = w8.line_number AND w1.position + 7 = w8.positi
 JOIN words w9 ON w1.line_number = w9.line_number AND w1.position + 8 = w9.position
 ''')
 
-# Schritt 4: Häufigkeit der Nonagramme zählen und `_` hinzufügen, falls nötig
+# Schritt 4: Häufigkeit der Nonagramme zählen und _ hinzufügen, falls nötig
 cursor.execute('''
 CREATE TEMP TABLE nonagram_counts AS
 SELECT 
@@ -88,28 +66,18 @@ GROUP BY nonagram_with_prefix
 ORDER BY frequency DESC
 ''')
 
-# Schritt 5: Hole die Nonagramme aus der Datenbank
-cursor.execute('SELECT nonagram_with_prefix, frequency FROM nonagram_counts')
-nonagrams = cursor.fetchall()
-
-# Schritt 6: Konsolidierung der Nonagramme basierend auf Levenshtein-Distanz
-print("Starte Konsolidierung der Nonagramme...")
-start_time = time.time()
-consolidated_nonagrams = consolidate_nonagrams_with_levenshtein(nonagrams, threshold=5)
-end_time = time.time()
-print(f"Konsolidierung abgeschlossen. Dauer: {end_time - start_time:.2f} Sekunden")
-
-# Schritt 7: Ergebnisse im CSV-Format in eine Datei schreiben
+# Schritt 5: Ergebnisse im CSV-Format in eine Datei schreiben
 output_file = 'haeufigste_nonagramme_mitte_konsolidiert.csv'
 with open(output_file, 'w', encoding='utf-8', newline='') as f:
     writer = csv.writer(f)
     # Schreibe die Kopfzeile
     writer.writerow(["Nonagramm", "Häufigkeit"])
-    # Schreibe die konsolidierten Nonagramme
-    for nonagram, count in consolidated_nonagrams[:1000]:  # Top 1000 konsolidierte Nonagramme
-        writer.writerow([nonagram, count])
+    # Hole die konsolidierten Nonagramme aus der Datenbank
+    cursor.execute('SELECT nonagram_with_prefix, frequency FROM nonagram_counts LIMIT 1000')
+    for row in cursor.fetchall():
+        writer.writerow(row)
 
 # Verbindung schließen
 conn.close()
 
-print(f"Die 1000 häufigsten konsolidierten Nonagramme wurden im CSV-Format in der Datei '{output_file}' gespeichert.")
+print(f"Die 1000 häufigsten Nonagramme wurden im CSV-Format in der Datei '{output_file}' gespeichert.")
