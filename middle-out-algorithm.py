@@ -23,10 +23,10 @@ with open('25-12-2024-mew.csv', 'r', encoding='utf-8') as csvfile:
         line_number += 1
         # Template mit der neuen Reihenfolge erstellen
         combined_text = (
-            f"<System>{row['system']}</s>"
-            f"<Benutzer>{row['Benutzer']} "
+            f"<|System|>{row['system']}</s>"
+            f"<|Benutzer|>{row['Benutzer']} "
             f", {row['Kontext']}</s>"
-            f"<Assistentin> {row['Assistentin']}</s>"
+            f"<|Assistentin|> {row['Assistentin']}</s>"
         )
         words = combined_text.split()  # Zerlege den Text in Wörter
         for position, word in enumerate(words):
@@ -49,7 +49,8 @@ for i in range(len(rows) - 8):  # -8, da wir 9 Wörter benötigen
         for offset in range(1, 5):  # Gehe abwechselnd nach links und rechts
             nonagram.insert(0, rows[middle_index - offset][2])  # Füge ein Wort links hinzu
             nonagram.append(rows[middle_index + offset][2])  # Füge ein Wort rechts hinzu
-        nonagram_counter["_".join(nonagram)] += 1
+        nonagram_str = "_".join(nonagram)  # Erstelle das Nonagramm als String
+        nonagram_counter[nonagram_str] += 1
 
 # Schritt 4: Ergebnisse im CSV-Format in eine Datei schreiben
 output_file = 'haeufigste_nonagramme_mitte.csv'
@@ -60,8 +61,8 @@ with open(output_file, 'w', encoding='utf-8', newline='') as f:
     index = 1  # Start der Nummerierung
     # Nur die 1000 häufigsten Nonagramme ausgeben
     for nonagram, count in nonagram_counter.most_common(1000):  # Top 1000 Nonagramme
-        # Prüfe, ob das Nonagramm mit "Links" beginnt
-        if not nonagram.startswith("Links"):
+        # Prüfe, ob das Nonagramm mit einem Unterstrich beginnt
+        if not nonagram.startswith("_"):  # Nur hinzufügen, wenn es nicht bereits mit "_" beginnt
             nonagram = f"_{nonagram}"  # Füge "_" am Anfang hinzu
         writer.writerow([nonagram, index])  # Schreibe Nonagramm und Nummer
         index += 1  # Erhöhe die Nummerierung
