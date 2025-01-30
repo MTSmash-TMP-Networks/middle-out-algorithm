@@ -1,5 +1,24 @@
 import sqlite3
 import csv
+from collections import Counter
+from difflib import SequenceMatcher  # Für die Ähnlichkeitsprüfung
+
+# Funktion zur Berechnung der Ähnlichkeit zwischen zwei Strings
+def calculate_similarity(a, b):
+    return SequenceMatcher(None, a, b).ratio()
+
+# Funktion zur Konsolidierung der Nonagramme basierend auf Ähnlichkeit
+def consolidate_nonagrams_with_similarity(nonagrams, threshold=0.8):
+    consolidated = []
+    seen = set()
+
+    for nonagram, count in nonagrams:
+        # Prüfe, ob das Nonagramm bereits konsolidiert wurde
+        if any(calculate_similarity(nonagram, existing) > threshold for existing, _ in consolidated):
+            continue
+        consolidated.append((nonagram, count))
+    
+    return consolidated
 
 # Schritt 1: SQLite-Datenbank erstellen und Tabelle für Wörter anlegen
 conn = sqlite3.connect('nonagram_analysis.db')
@@ -66,18 +85,24 @@ GROUP BY nonagram_with_prefix
 ORDER BY frequency DESC
 ''')
 
-# Schritt 5: Ergebnisse im CSV-Format in eine Datei schreiben
+# Schritt 5: Hole die Nonagramme aus der Datenbank
+cursor.execute('SELECT nonagram_with_prefix, frequency FROM nonagram_counts')
+nonagrams = cursor.fetchall()
+
+# Schritt 6: Konsolidierung der Nonagramme basierend auf Ähnlichkeit
+consolidated_nonagrams = consolidate_nonagrams_with_similarity(nonagrams, threshold=0.8)
+
+# Schritt 7: Ergebnisse im CSV-Format in eine Datei schreiben
 output_file = 'haeufigste_nonagramme_mitte_konsolidiert.csv'
 with open(output_file, 'w', encoding='utf-8', newline='') as f:
     writer = csv.writer(f)
     # Schreibe die Kopfzeile
     writer.writerow(["Nonagramm", "Häufigkeit"])
-    # Hole die konsolidierten Nonagramme aus der Datenbank
-    cursor.execute('SELECT nonagram_with_prefix, frequency FROM nonagram_counts LIMIT 1000')
-    for row in cursor.fetchall():
-        writer.writerow(row)
+    # Schreibe die konsolidierten Nonagramme
+    for nonagram, count in consolidated_nonagrams[:1000]:  # Top 1000 konsolidierte Nonagramme
+        writer.writerow([nonagram, count])
 
 # Verbindung schließen
 conn.close()
 
-print(f"Die 1000 häufigsten Nonagramme wurden im CSV-Format in der Datei '{output_file}' gespeichert.")
+print(f"Die 1000 häufigsten konsolidierten Nonagramme wurden im CSV-Format in der Datei '{output_file}' gespeichert.")
