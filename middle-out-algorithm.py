@@ -1,6 +1,5 @@
 import sqlite3
 import csv
-from collections import Counter
 
 # Schritt 1: SQLite-Datenbank erstellen und Tabelle für Wörter anlegen
 conn = sqlite3.connect('nonagram_analysis.db')
@@ -34,61 +33,51 @@ with open('25-12-2024-mew.csv', 'r', encoding='utf-8') as csvfile:
                            (line_number, position, word))
     conn.commit()
 
-# Schritt 3: Nonagramme von der Mitte nach außen erstellen (ohne Überlappung)
-cursor.execute('SELECT line_number, position, word FROM words ORDER BY line_number, position')
-rows = cursor.fetchall()
+# Schritt 3: Nonagramme in der SQL-Datenbank erstellen
+# Erstelle eine temporäre Tabelle für Nonagramme
+cursor.execute('''
+CREATE TEMP TABLE nonagrams AS
+SELECT 
+    w1.line_number AS line_number,
+    w1.word || '_' || w2.word || '_' || w3.word || '_' || w4.word || '_' || 
+    w5.word || '_' || w6.word || '_' || w7.word || '_' || w8.word || '_' || w9.word AS nonagram
+FROM words w1
+JOIN words w2 ON w1.line_number = w2.line_number AND w1.position + 1 = w2.position
+JOIN words w3 ON w1.line_number = w3.line_number AND w1.position + 2 = w3.position
+JOIN words w4 ON w1.line_number = w4.line_number AND w1.position + 3 = w4.position
+JOIN words w5 ON w1.line_number = w5.line_number AND w1.position + 4 = w5.position
+JOIN words w6 ON w1.line_number = w6.line_number AND w1.position + 5 = w6.position
+JOIN words w7 ON w1.line_number = w7.line_number AND w1.position + 6 = w7.position
+JOIN words w8 ON w1.line_number = w8.line_number AND w1.position + 7 = w8.position
+JOIN words w9 ON w1.line_number = w9.line_number AND w1.position + 8 = w9.position
+''')
 
-# Nonagramme zählen
-nonagram_counter = Counter()
-i = 0
-while i < len(rows) - 8:  # -8, da wir 9 Wörter benötigen
-    # Prüfe, ob genügend Wörter in derselben Zeile vorhanden sind
-    if all(rows[i][0] == rows[i+j][0] for j in range(9)):  # Prüfe, ob alle Wörter in derselben Zeile sind
-        # Wähle Wörter von der Mitte nach außen
-        middle_index = i + 4  # Das mittlere Wort (Index 4 im Nonagramm)
-        nonagram = [rows[middle_index][2]]  # Beginne mit dem mittleren Wort
-        for offset in range(1, 5):  # Gehe abwechselnd nach links und rechts
-            nonagram.insert(0, rows[middle_index - offset][2])  # Füge ein Wort links hinzu
-            nonagram.append(rows[middle_index + offset][2])  # Füge ein Wort rechts hinzu
-        nonagram_str = "_".join(nonagram)  # Erstelle das Nonagramm als String
-        nonagram_counter[nonagram_str] += 1
-        i += 9  # Springe zum nächsten Block von 9 Wörtern (keine Überlappung)
-    else:
-        i += 1  # Falls die Wörter nicht in derselben Zeile sind, gehe zum nächsten Wort
-
-# Schritt 4: Konsolidierung der Nonagramme
-def consolidate_nonagrams(counter):
-    sorted_nonagrams = counter.most_common()  # Sortiere nach Häufigkeit
-    consolidated = []
-    seen = set()
-
-    for nonagram, count in sorted_nonagrams:
-        # Überspringe Nonagramme, die bereits konsolidiert wurden
-        if any(nonagram in s for s in seen):
-            continue
-        consolidated.append((nonagram, count))
-        seen.add(nonagram)
-    
-    return consolidated
-
-consolidated_nonagrams = consolidate_nonagrams(nonagram_counter)
+# Schritt 4: Häufigkeit der Nonagramme zählen und `_` hinzufügen, falls nötig
+cursor.execute('''
+CREATE TEMP TABLE nonagram_counts AS
+SELECT 
+    CASE 
+        WHEN nonagram LIKE '<|System|>%' THEN nonagram
+        ELSE '_' || nonagram
+    END AS nonagram_with_prefix,
+    COUNT(*) AS frequency
+FROM nonagrams
+GROUP BY nonagram_with_prefix
+ORDER BY frequency DESC
+''')
 
 # Schritt 5: Ergebnisse im CSV-Format in eine Datei schreiben
 output_file = 'haeufigste_nonagramme_mitte_konsolidiert.csv'
 with open(output_file, 'w', encoding='utf-8', newline='') as f:
     writer = csv.writer(f)
     # Schreibe die Kopfzeile
-    writer.writerow(["Nonagramm", "Nummer"])
-    index = 1  # Start der Nummerierung
-    # Schreibe die konsolidierten Nonagramme
-    for nonagram, count in consolidated_nonagrams[:1000]:  # Top 1000 konsolidierte Nonagramme
-        # Prüfe, ob das Nonagramm mit "<|System|>" beginnt
-        if not nonagram.startswith("<|System|>"):  # Nur hinzufügen, wenn es nicht mit "<|System|>" beginnt
-            nonagram = f"_{nonagram}"  # Füge "_" am Anfang hinzu
-        writer.writerow([nonagram, index])  # Schreibe Nonagramm und Nummer
-        index += 1  # Erhöhe die Nummerierung
+    writer.writerow(["Nonagramm", "Häufigkeit"])
+    # Hole die konsolidierten Nonagramme aus der Datenbank
+    cursor.execute('SELECT nonagram_with_prefix, frequency FROM nonagram_counts LIMIT 1000')
+    for row in cursor.fetchall():
+        writer.writerow(row)
 
 # Verbindung schließen
 conn.close()
 
-print(f"Die 1000 häufigsten konsolidierten Nonagramme wurden im CSV-Format in der Datei '{output_file}' gespeichert.")
+print(f"Die 1000 häufigsten Nonagramme wurden im CSV-Format in der Datei '{output_file}' gespeichert.")
