@@ -61,8 +61,8 @@ with open(output_file, 'w', encoding='utf-8', newline='') as f:
     index = 1  # Start der Nummerierung
     # Nur die 1000 häufigsten Nonagramme ausgeben
     for nonagram, count in nonagram_counter.most_common(1000):  # Top 1000 Nonagramme
-        # Prüfe, ob das Nonagramm mit einem Unterstrich beginnt
-        if not nonagram.startswith("_"):  # Nur hinzufügen, wenn es nicht bereits mit "_" beginnt
+        # Prüfe, ob das Nonagramm mit "<|System|>" beginnt
+        if not nonagram.startswith("<|System|>"):  # Nur hinzufügen, wenn es nicht mit "<System>" beginnt
             nonagram = f"_{nonagram}"  # Füge "_" am Anfang hinzu
         writer.writerow([nonagram, index])  # Schreibe Nonagramm und Nummer
         index += 1  # Erhöhe die Nummerierung
