@@ -1,20 +1,23 @@
 import sqlite3
 import csv
-from collections import Counter
-from difflib import SequenceMatcher  # Für die Ähnlichkeitsprüfung
+from Levenshtein import distance  # Für die Levenshtein-Distanz
+import time  # Für die Zeitmessung
 
-# Funktion zur Berechnung der Ähnlichkeit zwischen zwei Strings
-def calculate_similarity(a, b):
-    return SequenceMatcher(None, a, b).ratio()
-
-# Funktion zur Konsolidierung der Nonagramme basierend auf Ähnlichkeit
-def consolidate_nonagrams_with_similarity(nonagrams, threshold=0.8):
+# Funktion zur Konsolidierung der Nonagramme basierend auf Levenshtein-Distanz
+def consolidate_nonagrams_with_levenshtein(nonagrams, threshold=5):
     consolidated = []
-    seen = set()
+    total = len(nonagrams)  # Gesamtanzahl der Nonagramme
+    start_time = time.time()  # Startzeit für die Fortschrittsanzeige
 
-    for nonagram, count in nonagrams:
+    for i, (nonagram, count) in enumerate(nonagrams):
+        # Fortschrittsanzeige
+        if i % 100 == 0 or i == total - 1:  # Alle 100 Schritte oder am Ende
+            elapsed_time = time.time() - start_time
+            progress = (i + 1) / total * 100
+            print(f"[{progress:.2f}%] Verarbeitet: {i + 1}/{total} Nonagramme. Zeit: {elapsed_time:.2f}s")
+
         # Prüfe, ob das Nonagramm bereits konsolidiert wurde
-        if any(calculate_similarity(nonagram, existing) > threshold for existing, _ in consolidated):
+        if any(distance(nonagram, existing) < threshold for existing, _ in consolidated):
             continue
         consolidated.append((nonagram, count))
     
@@ -89,8 +92,10 @@ ORDER BY frequency DESC
 cursor.execute('SELECT nonagram_with_prefix, frequency FROM nonagram_counts')
 nonagrams = cursor.fetchall()
 
-# Schritt 6: Konsolidierung der Nonagramme basierend auf Ähnlichkeit
-consolidated_nonagrams = consolidate_nonagrams_with_similarity(nonagrams, threshold=0.8)
+# Schritt 6: Konsolidierung der Nonagramme basierend auf Levenshtein-Distanz
+print("Starte Konsolidierung der Nonagramme...")
+consolidated_nonagrams = consolidate_nonagrams_with_levenshtein(nonagrams, threshold=5)
+print("Konsolidierung abgeschlossen.")
 
 # Schritt 7: Ergebnisse im CSV-Format in eine Datei schreiben
 output_file = 'haeufigste_nonagramme_mitte_konsolidiert.csv'
