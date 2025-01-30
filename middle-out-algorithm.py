@@ -54,7 +54,7 @@ with open(output_file, 'w', encoding='utf-8', newline='') as f:
     writer.writerow(["Quadrigramm", "Nummer"])
     index = 1  # Start der Nummerierung
     # Nur die 1000 häufigsten Quadrigramme ausgeben
-    for quadrigram, count in quadrigram_counter.most_common(3000):  # Top 1000 Quadrigramme
+    for quadrigram, count in quadrigram_counter.most_common(1000):  # Top 1000 Quadrigramme
         # Prüfe, ob das Quadrigramm mit "Links" beginnt
         if not quadrigram.startswith("Links"):
             quadrigram = f"_{quadrigram}"  # Füge "_" am Anfang hinzu
